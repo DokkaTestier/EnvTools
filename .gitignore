@@ -1,0 +1,33 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Archivos temporales de Blender
+*.blend1
+*.blend2
+*.blend@
+*.blend~
+
+# Backups automáticos de Blender
+*.autosave
+
+# Archivos de configuración de VSCode
+.vscode/
+
+# Archivos temporales del sistema
+.DS_Store
+Thumbs.db
+
+# Entornos virtuales (si usas uno)
+env/
+venv/
+ENV/
+.venv/
+
+# Archivos de logs
+*.log
+
+# Configuraciones personales o archivos secretos
+.env
+*.secret
