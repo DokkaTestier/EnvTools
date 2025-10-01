@@ -2,8 +2,8 @@ import bpy
 
 class OBJECT_OT_ReplaceWithActive(bpy.types.Operator):
     bl_idname = "object.replace_with_active"
-    bl_label = "Reemplazar con Activo"
-    bl_description = "Reemplaza los objetos seleccionados con el objeto activo"
+    bl_label = "Replace with Active"
+    bl_description = "Replace selected objects with the active object"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -11,11 +11,11 @@ class OBJECT_OT_ReplaceWithActive(bpy.types.Operator):
         selected = [obj for obj in context.selected_objects if obj != active]
 
         if not active:
-            self.report({'ERROR'}, "No hay objeto activo")
+            self.report({'ERROR'}, "No active object")
             return {'CANCELLED'}
 
         if not selected:
-            self.report({'ERROR'}, "No hay objetos seleccionados para reemplazar")
+            self.report({'ERROR'}, "No objects selected to replace")
             return {'CANCELLED'}
 
         for obj in selected:
@@ -30,7 +30,7 @@ class OBJECT_OT_ReplaceWithActive(bpy.types.Operator):
 
 
 class VIEW3D_PT_ReplaceWithActivePanel(bpy.types.Panel):
-    bl_label = "Reemplazar con Activo"
+    bl_label = "Replace with Active"
     bl_idname = "VIEW3D_PT_replace_with_active"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -38,5 +38,5 @@ class VIEW3D_PT_ReplaceWithActivePanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.label(text="Reemplazar objetos seleccionados")
-        layout.operator("object.replace_with_active", text="Reemplazar", icon='OBJECT_DATA')
+        layout.label(text="Replace selected objects with active")
+        layout.operator("object.replace_with_active", text="Replace", icon='OBJECT_DATA')
