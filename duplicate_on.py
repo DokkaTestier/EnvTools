@@ -30,13 +30,25 @@ class OBJECT_OT_DuplicateOnFaces(bpy.types.Operator):
         rot_y = scene.rot_axis_y
         rot_z = scene.rot_axis_z
 
+        # 📌 Create a new collection for this batch of duplicates
+        base_name = "Duplicates"
+        new_coll_name = base_name
+        i = 1
+        while new_coll_name in bpy.data.collections:
+            new_coll_name = f"{base_name}_{i:03d}"
+            i += 1
+
+        new_collection = bpy.data.collections.new(new_coll_name)
+        context.scene.collection.children.link(new_collection)
+
+        # 🔽 Duplicate loop
         for target in targets:
             if not target.type == 'MESH':
                 continue
             mesh = target.data
             for face in mesh.polygons:
 
-                # Apply random face selection probability
+                # Random face selection probability
                 if random_selection:
                     if random.random() > (random_range / 100.0):
                         continue  # Skip this face
@@ -67,7 +79,8 @@ class OBJECT_OT_DuplicateOnFaces(bpy.types.Operator):
 
                     new_obj.rotation_euler.rotate(mathutils.Euler(rand_rot))
 
-                context.collection.objects.link(new_obj)
+                # Link duplicate to the new collection
+                new_collection.objects.link(new_obj)
 
         return {'FINISHED'}
 

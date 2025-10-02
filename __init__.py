@@ -11,17 +11,63 @@ bl_info = {
 import bpy
 from . import replace_with_active
 from . import duplicate_on
+from . import utility_panel
 
 classes = (
     replace_with_active.OBJECT_OT_ReplaceWithActive,
     duplicate_on.OBJECT_OT_DuplicateOnFaces,
     replace_with_active.VIEW3D_PT_ReplaceWithActivePanel,
     duplicate_on.VIEW3D_PT_DuplicateOnFacesPanel,
+    utility_panel.VIEW3D_PT_UtilityPanel,
 )
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+
+        # DuplicateOn properties
+    bpy.types.Scene.face_scale_min = bpy.props.FloatProperty(
+        name="Min Scale", default=1.0, min=0.0, max=10.0
+    )
+    bpy.types.Scene.face_scale_max = bpy.props.FloatProperty(
+        name="Max Scale", default=1.0, min=0.0, max=10.0
+    )
+    bpy.types.Scene.face_rot_min = bpy.props.FloatProperty(
+        name="Min Rotation", default=0.0, min=0.0, max=1.0,
+        description="Minimum random rotation (1.0 = 360°)"
+    )
+    bpy.types.Scene.face_rot_max = bpy.props.FloatProperty(
+        name="Max Rotation", default=0.0, min=0.0, max=1.0,
+        description="Maximum random rotation (1.0 = 360°)"
+    )
+    bpy.types.Scene.rot_axis_x = bpy.props.BoolProperty(name="X", default=False)
+    bpy.types.Scene.rot_axis_y = bpy.props.BoolProperty(name="Y", default=False)
+    bpy.types.Scene.rot_axis_z = bpy.props.BoolProperty(name="Z", default=True)
+
+    bpy.types.Scene.duplicate_keep_origin = bpy.props.BoolProperty(
+        name="Keep Origin",
+        default=False,
+        description="Keep the original object orientation instead of aligning to face normals"
+    )
+    bpy.types.Scene.duplicate_random_selection = bpy.props.BoolProperty(
+        name="Random Selection",
+        default=False,
+        description="Randomly select faces for duplication"
+    )
+    bpy.types.Scene.duplicate_random_range = bpy.props.FloatProperty(
+        name="Random Range Selection (%)",
+        default=100.0,
+        min=1.0,
+        max=100.0,
+        subtype="PERCENTAGE"
+    )
+
+    # Replace with Active property
+    bpy.types.Scene.replace_apply_scale = bpy.props.BoolProperty(
+        name="Apply Scale",
+        default=False,
+        description="Apply scale to the active object before replacing"
+    )
 
     # Properties for random scale
     bpy.types.Scene.face_scale_min = bpy.props.FloatProperty(
@@ -78,6 +124,7 @@ def unregister():
     del bpy.types.Scene.duplicate_keep_origin
     del bpy.types.Scene.duplicate_random_selection
     del bpy.types.Scene.duplicate_random_range
+    del bpy.types.Scene.replace_apply_scale
 
 if __name__ == "__main__":
     register()

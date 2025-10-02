@@ -18,6 +18,12 @@ class OBJECT_OT_ReplaceWithActive(bpy.types.Operator):
             self.report({'ERROR'}, "No objects selected to replace")
             return {'CANCELLED'}
 
+        # ✅ Apply Scale if enabled
+        if context.scene.replace_apply_scale:
+            bpy.ops.object.transform_apply(
+                location=False, rotation=False, scale=True
+            )
+
         for obj in selected:
             new_obj = active.copy()
             new_obj.location = obj.location
@@ -38,5 +44,8 @@ class VIEW3D_PT_ReplaceWithActivePanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
+        scene = context.scene
+
         layout.label(text="Replace selected objects with active")
         layout.operator("object.replace_with_active", text="Replace", icon='OBJECT_DATA')
+        layout.prop(scene, "replace_apply_scale")
