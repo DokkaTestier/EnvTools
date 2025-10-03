@@ -15,9 +15,13 @@ from . import utility_panel
 
 classes = (
     replace_with_active.OBJECT_OT_ReplaceWithActive,
-    duplicate_on.OBJECT_OT_DuplicateOnFaces,
     replace_with_active.VIEW3D_PT_ReplaceWithActivePanel,
+    duplicate_on.OBJECT_OT_DuplicateOnFaces,
     duplicate_on.VIEW3D_PT_DuplicateOnFacesPanel,
+    # utility operators & panel
+    utility_panel.MESH_OT_deselect_boundary,
+    utility_panel.OBJECT_OT_apply_all_transform,
+    utility_panel.OBJECT_OT_apply_all_modifiers,
     utility_panel.VIEW3D_PT_UtilityPanel,
 )
 
