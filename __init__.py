@@ -17,7 +17,8 @@ classes = (
     replace_with_active.OBJECT_OT_ReplaceWithActive,
     replace_with_active.VIEW3D_PT_ReplaceWithActivePanel,
     duplicate_on.OBJECT_OT_DuplicateOnFaces,
-    duplicate_on.VIEW3D_PT_DuplicateOnFacesPanel,
+    duplicate_on.OBJECT_OT_DuplicateOnVertices,
+    duplicate_on.VIEW3D_PT_DuplicateOnPanel,
     # utility operators & panel
     utility_panel.MESH_OT_deselect_boundary,
     utility_panel.OBJECT_OT_apply_all_transform,
