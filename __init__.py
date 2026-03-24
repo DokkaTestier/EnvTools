@@ -1,10 +1,10 @@
 bl_info = {
     "name": "EnvTools",
     "author": "Your Name",
-    "version": (1, 0),
+    "version": (1, 2),
     "blender": (2, 93, 0),
     "location": "View3D > Tool",
-    "description": "Environment tools: replace objects and duplicate on faces",
+    "description": "Environment tools: replace objects, duplicate on faces/vertices/volume, and utility shortcuts",
     "category": "Object",
 }
 
@@ -14,23 +14,32 @@ from . import duplicate_on
 from . import utility_panel
 
 classes = (
+    # Replace with Active
     replace_with_active.OBJECT_OT_ReplaceWithActive,
     replace_with_active.VIEW3D_PT_ReplaceWithActivePanel,
+    # Duplicate On
     duplicate_on.OBJECT_OT_DuplicateOnFaces,
     duplicate_on.OBJECT_OT_DuplicateOnVertices,
+    duplicate_on.OBJECT_OT_DuplicateOnVolume,
+    duplicate_on.OBJECT_OT_DuplicateXTimes,
     duplicate_on.VIEW3D_PT_DuplicateOnPanel,
-    # utility operators & panel
+    # Utility
     utility_panel.MESH_OT_deselect_boundary,
     utility_panel.OBJECT_OT_apply_all_transform,
     utility_panel.OBJECT_OT_apply_all_modifiers,
+    utility_panel.VIEW3D_OT_set_orientation_global,
+    utility_panel.VIEW3D_OT_set_orientation_normal,
+    utility_panel.VIEW3D_OT_set_orientation_view,
+    utility_panel.OBJECT_OT_merge_overlap,
     utility_panel.VIEW3D_PT_UtilityPanel,
 )
+
 
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-        # DuplicateOn properties
+    # --- Duplicate On: Faces / Vertices shared props ---
     bpy.types.Scene.face_scale_min = bpy.props.FloatProperty(
         name="Min Scale", default=1.0, min=0.0, max=10.0
     )
@@ -57,79 +66,53 @@ def register():
     bpy.types.Scene.duplicate_random_selection = bpy.props.BoolProperty(
         name="Random Selection",
         default=False,
-        description="Randomly select faces for duplication"
+        description="Randomly select faces/vertices for duplication"
     )
     bpy.types.Scene.duplicate_random_range = bpy.props.FloatProperty(
         name="Random Range Selection (%)",
-        default=100.0,
-        min=1.0,
-        max=100.0,
+        default=100.0, min=1.0, max=100.0,
         subtype="PERCENTAGE"
     )
 
-    # Replace with Active property
+    # --- Duplicate on Volume: own count ---
+    bpy.types.Scene.duplicate_volume_count = bpy.props.IntProperty(
+        name="Count",
+        default=10, min=1, max=99999,
+        description="Number of objects to scatter inside the volume"
+    )
+
+    # --- Duplicate X Times: own count ---
+    bpy.types.Scene.duplicate_x_times_count = bpy.props.IntProperty(
+        name="Count",
+        default=1, min=1, max=9999,
+        description="Number of duplicates to create"
+    )
+
+    # --- Replace with Active ---
     bpy.types.Scene.replace_apply_scale = bpy.props.BoolProperty(
         name="Apply Scale",
         default=False,
         description="Apply scale to the active object before replacing"
     )
 
-    # Properties for random scale
-    bpy.types.Scene.face_scale_min = bpy.props.FloatProperty(
-        name="Min Scale", default=1.0, min=0.0, max=10.0
-    )
-    bpy.types.Scene.face_scale_max = bpy.props.FloatProperty(
-        name="Max Scale", default=1.0, min=0.0, max=10.0
-    )
-
-    # Random rotation (0–1 → 0–360°)
-    bpy.types.Scene.face_rot_min = bpy.props.FloatProperty(
-        name="Min Rotation", default=0.0, min=0.0, max=1.0,
-        description="Minimum random rotation (1.0 = 360°)"
-    )
-    bpy.types.Scene.face_rot_max = bpy.props.FloatProperty(
-        name="Max Rotation", default=0.0, min=0.0, max=1.0,
-        description="Maximum random rotation (1.0 = 360°)"
-    )
-
-    # Rotation axis toggles
-    bpy.types.Scene.rot_axis_x = bpy.props.BoolProperty(name="X", default=False)
-    bpy.types.Scene.rot_axis_y = bpy.props.BoolProperty(name="Y", default=False)
-    bpy.types.Scene.rot_axis_z = bpy.props.BoolProperty(name="Z", default=True)
-
-    bpy.types.Scene.duplicate_keep_origin = bpy.props.BoolProperty(
-        name="Keep Origin",
-        default=False,
-        description="Keep the original object orientation instead of aligning to face normals"
-    )
-    bpy.types.Scene.duplicate_random_selection = bpy.props.BoolProperty(
-        name="Random Selection",
-        default=False,
-        description="Randomly select faces for duplication"
-    )
-    bpy.types.Scene.duplicate_random_range = bpy.props.FloatProperty(
-        name="Random Range Selection (%)",
-        default=100.0,
-        min=1.0,
-        max=100.0,
-        subtype="PERCENTAGE"
-    )
 
 def unregister():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
 
-    del bpy.types.Scene.face_scale_min
-    del bpy.types.Scene.face_scale_max
-    del bpy.types.Scene.face_rot_min
-    del bpy.types.Scene.face_rot_max
-    del bpy.types.Scene.rot_axis_x
-    del bpy.types.Scene.rot_axis_y
-    del bpy.types.Scene.rot_axis_z
-    del bpy.types.Scene.duplicate_keep_origin
-    del bpy.types.Scene.duplicate_random_selection
-    del bpy.types.Scene.duplicate_random_range
-    del bpy.types.Scene.replace_apply_scale
+    for prop in [
+        "face_scale_min", "face_scale_max",
+        "face_rot_min", "face_rot_max",
+        "rot_axis_x", "rot_axis_y", "rot_axis_z",
+        "duplicate_keep_origin",
+        "duplicate_random_selection", "duplicate_random_range",
+        "duplicate_volume_count",
+        "duplicate_x_times_count",
+        "replace_apply_scale",
+    ]:
+        if hasattr(bpy.types.Scene, prop):
+            delattr(bpy.types.Scene, prop)
+
 
 if __name__ == "__main__":
     register()

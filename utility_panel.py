@@ -7,7 +7,7 @@ import bmesh
 class MESH_OT_deselect_boundary(bpy.types.Operator):
     bl_idname = "mesh.deselect_boundary"
     bl_label = "Deselect Boundary"
-    bl_description = "Select boundary loop for the current region, then deselect only the boundary (keeps previous selection)"
+    bl_description = "Select boundary loop for the current region, then deselect only the boundary"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -15,37 +15,32 @@ class MESH_OT_deselect_boundary(bpy.types.Operator):
         if not obj or obj.type != 'MESH':
             self.report({'WARNING'}, "Active object must be a mesh")
             return {'CANCELLED'}
-
-        # Must be in Edit Mode
         if obj.mode != 'EDIT':
             self.report({'WARNING'}, "Operator requires Edit Mode")
             return {'CANCELLED'}
 
-        # Access bmesh and check there is something selected
         bm = bmesh.from_edit_mesh(obj.data)
-        any_sel = any(v.select for v in bm.verts) or any(e.select for e in bm.edges) or any(f.select for f in bm.faces)
+        any_sel = (
+            any(v.select for v in bm.verts) or
+            any(e.select for e in bm.edges) or
+            any(f.select for f in bm.faces)
+        )
         if not any_sel:
             self.report({'INFO'}, "Nothing selected — nothing to do")
             return {'CANCELLED'}
 
-        # Save current mesh select mode and set to edge select
         tool_settings = context.tool_settings
         prev_mode = tuple(tool_settings.mesh_select_mode)
         try:
             tool_settings.mesh_select_mode = (False, True, False)
         except Exception:
-            # ignore if cannot set (very old/new api)
             pass
 
-        # Save previously selected edges indices
-        bm.verts.ensure_lookup_table()
         bm.edges.ensure_lookup_table()
         prev_selected_edges = {e.index for e in bm.edges if e.select}
 
-        # Run region_to_loop to select the boundary
         bpy.ops.mesh.region_to_loop()
 
-        # Update bmesh and deselect only the newly selected edges (the boundary)
         bm = bmesh.from_edit_mesh(obj.data)
         bm.edges.ensure_lookup_table()
         for e in bm.edges:
@@ -54,7 +49,6 @@ class MESH_OT_deselect_boundary(bpy.types.Operator):
 
         bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
 
-        # Restore previous mesh select mode
         try:
             tool_settings.mesh_select_mode = prev_mode
         except Exception:
@@ -64,7 +58,7 @@ class MESH_OT_deselect_boundary(bpy.types.Operator):
 
 
 # -----------------------
-# Apply All Transforms operator
+# Apply All Transforms
 # -----------------------
 class OBJECT_OT_apply_all_transform(bpy.types.Operator):
     bl_idname = "object.apply_all_transform"
@@ -78,10 +72,9 @@ class OBJECT_OT_apply_all_transform(bpy.types.Operator):
             self.report({'WARNING'}, "No objects selected")
             return {'CANCELLED'}
 
-        prev_mode = context.mode
+        prev_mode   = context.mode
         prev_active = context.view_layer.objects.active
 
-        # Ensure we're in OBJECT mode
         try:
             if prev_mode != 'OBJECT':
                 bpy.ops.object.mode_set(mode='OBJECT')
@@ -89,18 +82,15 @@ class OBJECT_OT_apply_all_transform(bpy.types.Operator):
             pass
 
         for obj in sel:
-            # Make object active and apply transforms
             try:
                 context.view_layer.objects.active = obj
                 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
             except Exception as e:
-                self.report({'WARNING'}, f"Couldn't apply transforms on {obj.name}: {str(e)}")
+                self.report({'WARNING'}, f"Couldn't apply transforms on {obj.name}: {e}")
 
-        # Restore previous active and mode
         try:
             context.view_layer.objects.active = prev_active
             if prev_mode != 'OBJECT' and prev_active is not None:
-                # restore edit mode if it was in edit mode before
                 if prev_mode.startswith('EDIT'):
                     bpy.ops.object.mode_set(mode='EDIT')
         except Exception:
@@ -110,7 +100,7 @@ class OBJECT_OT_apply_all_transform(bpy.types.Operator):
 
 
 # -----------------------
-# Apply All Modifiers operator
+# Apply All Modifiers
 # -----------------------
 class OBJECT_OT_apply_all_modifiers(bpy.types.Operator):
     bl_idname = "object.apply_all_modifiers"
@@ -124,10 +114,9 @@ class OBJECT_OT_apply_all_modifiers(bpy.types.Operator):
             self.report({'WARNING'}, "No mesh objects selected")
             return {'CANCELLED'}
 
-        prev_mode = context.mode
+        prev_mode   = context.mode
         prev_active = context.view_layer.objects.active
 
-        # Ensure OBJECT mode
         try:
             if prev_mode != 'OBJECT':
                 bpy.ops.object.mode_set(mode='OBJECT')
@@ -136,16 +125,12 @@ class OBJECT_OT_apply_all_modifiers(bpy.types.Operator):
 
         for obj in sel:
             context.view_layer.objects.active = obj
-            # Make a copy of list because applying modifies it
-            mods = list(obj.modifiers)
-            for mod in mods:
+            for mod in list(obj.modifiers):
                 try:
                     bpy.ops.object.modifier_apply(modifier=mod.name)
                 except Exception as e:
-                    # Continue on failure but inform user
                     self.report({'WARNING'}, f"Failed to apply {mod.name} on {obj.name}: {e}")
 
-        # Restore previous active and mode
         try:
             context.view_layer.objects.active = prev_active
             if prev_mode != 'OBJECT' and prev_active is not None:
@@ -158,7 +143,110 @@ class OBJECT_OT_apply_all_modifiers(bpy.types.Operator):
 
 
 # -----------------------
-# Utility Panel (all buttons)
+# Transformation Orientation shortcuts
+# -----------------------
+class VIEW3D_OT_set_orientation_global(bpy.types.Operator):
+    bl_idname = "view3d.set_orientation_global"
+    bl_label = "Global"
+    bl_description = "Set Transformation Orientation to Global"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        context.scene.transform_orientation_slots[0].type = 'GLOBAL'
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_set_orientation_normal(bpy.types.Operator):
+    bl_idname = "view3d.set_orientation_normal"
+    bl_label = "Normal"
+    bl_description = "Set Transformation Orientation to Normal"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        context.scene.transform_orientation_slots[0].type = 'NORMAL'
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_set_orientation_view(bpy.types.Operator):
+    bl_idname = "view3d.set_orientation_view"
+    bl_label = "View"
+    bl_description = "Set Transformation Orientation to View"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        context.scene.transform_orientation_slots[0].type = 'VIEW'
+        return {'FINISHED'}
+
+
+# -----------------------
+# Merge Overlap
+# Uses REGISTER so Blender shows the redo panel (F9 / bottom-left)
+# where the user can tweak threshold, unselected and sharp edges.
+# -----------------------
+class OBJECT_OT_merge_overlap(bpy.types.Operator):
+    bl_idname = "object.merge_overlap"
+    bl_label = "Merge Overlap"
+    bl_description = (
+        "Select all vertices and run Merge by Distance. "
+        "Adjust threshold, Unselected and Sharp Edges in the redo panel (F9)"
+    )
+    bl_options = {'REGISTER', 'UNDO'}
+
+    # Expose the same parameters as mesh.remove_doubles so they appear
+    # in the redo panel and can be tweaked interactively.
+    threshold: bpy.props.FloatProperty(
+        name="Merge Distance",
+        description="Maximum distance between vertices to merge",
+        default=0.0001,
+        min=0.0,
+        max=10.0,
+        precision=4,
+        unit='LENGTH',
+    )
+    use_unselected: bpy.props.BoolProperty(
+        name="Unselected",
+        description="Merge selected vertices with unselected ones",
+        default=False,
+    )
+    use_sharp_edge_from_normals: bpy.props.BoolProperty(
+        name="Sharp Edges",
+        description="Calculate sharp edges using custom normal data",
+        default=False,
+    )
+
+    def execute(self, context):
+        obj = context.active_object
+        if not obj or obj.type != 'MESH':
+            self.report({'WARNING'}, "Active object must be a mesh")
+            return {'CANCELLED'}
+
+        was_in_object_mode = (context.mode != 'EDIT_MESH')
+
+        if was_in_object_mode:
+            bpy.ops.object.mode_set(mode='EDIT')
+
+        # Select all vertices
+        bpy.ops.mesh.select_all(action='SELECT')
+
+        # Merge by distance with user-controllable parameters
+        bpy.ops.mesh.remove_doubles(
+            threshold=self.threshold,
+            use_unselected=self.use_unselected,
+            use_sharp_edge_from_normals=self.use_sharp_edge_from_normals,
+        )
+
+        if was_in_object_mode:
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        # Run immediately; redo panel appears automatically thanks to REGISTER
+        return self.execute(context)
+
+
+# -----------------------
+# Utility Panel
 # -----------------------
 class VIEW3D_PT_UtilityPanel(bpy.types.Panel):
     bl_label = "Utility"
@@ -168,75 +256,57 @@ class VIEW3D_PT_UtilityPanel(bpy.types.Panel):
     bl_category = "EnvTools"
 
     def draw(self, context):
-        layout = self.layout
-        overlays = context.space_data.overlay  # For Face Orientation toggle
+        layout  = self.layout
+        overlays = context.space_data.overlay
 
-        # === Row 1 ===
         row = layout.row(align=True)
-        col1 = row.column()
-        col2 = row.column()
-        col1.operator("view3d.snap_cursor_to_selected", text="Cursor to Selected", icon='PIVOT_CURSOR')
-        col2.operator("object.origin_set", text="Origin to 3D Cursor", icon='OBJECT_ORIGIN').type = 'ORIGIN_CURSOR'
+        row.operator("view3d.snap_cursor_to_selected", text="Cursor to Selected",  icon='PIVOT_CURSOR')
+        row.operator("object.origin_set",              text="Origin to 3D Cursor", icon='OBJECT_ORIGIN').type = 'ORIGIN_CURSOR'
 
-        # === Row 2 ===
         row2 = layout.row(align=True)
-        col1b = row2.column()
-        col2b = row2.column()
-        col1b.operator("mesh.quads_convert_to_tris", text="Triangulate Faces", icon='MOD_TRIANGULATE')
-        col2b.operator("mesh.tris_convert_to_quads", text="Tris to Quads", icon='MESH_GRID')
+        row2.operator("mesh.quads_convert_to_tris", text="Triangulate Faces", icon='MOD_TRIANGULATE')
+        row2.operator("mesh.tris_convert_to_quads",  text="Tris to Quads",    icon='MESH_GRID')
 
-        # === Row 3 ===
         row3 = layout.row(align=True)
-        col1c = row3.column()
-        col2c = row3.column()
-        col1c.prop(overlays, "show_face_orientation", text="Face Orientation")
-        col2c.operator("mesh.flip_normals", text="Flip Normals", icon='NORMALS_FACE')
+        row3.prop(overlays, "show_face_orientation", text="Face Orientation")
+        row3.operator("mesh.flip_normals", text="Flip Normals", icon='NORMALS_FACE')
 
-        # === Row 4 ===
         row4 = layout.row(align=True)
-        col1d = row4.column()
-        col2d = row4.column()
-        col1d.operator("mesh.set_edge_flow", text="Set Flow", icon='IPO_SINE')
-        col2d.operator("mesh.loop_multi_select", text="Edge Ring", icon='EDGESEL').ring = True
+        row4.operator("mesh.set_edge_flow",      text="Set Flow",  icon='IPO_SINE')
+        row4.operator("mesh.loop_multi_select",  text="Edge Ring", icon='EDGESEL').ring = True
 
-        # === Row 5 ===
         row5 = layout.row(align=True)
-        col1e = row5.column()
-        col2e = row5.column()
-        col1e.operator("mesh.region_to_loop", text="Select Boundary", icon='OUTLINER_OB_MESH')
-        col2e.operator("mesh.deselect_boundary", text="Deselect Boundary", icon='X')
+        row5.operator("mesh.region_to_loop",    text="Select Boundary",   icon='OUTLINER_OB_MESH')
+        row5.operator("mesh.deselect_boundary", text="Deselect Boundary", icon='X')
 
-        # === Row 6 ===
         row6 = layout.row(align=True)
-        col1f = row6.column()
-        col2f = row6.column()
-        col1f.operator("mesh.mark_seam", text="Mark Seam", icon='UV')
-        col2f.operator("mesh.mark_seam", text="Clear Seam", icon='X').clear = True
+        row6.operator("mesh.mark_seam", text="Mark Seam",  icon='UV')
+        row6.operator("mesh.mark_seam", text="Clear Seam", icon='X').clear = True
 
-        # === Row 7 ===
         row7 = layout.row(align=True)
-        col1g = row7.column()
-        col2g = row7.column()
-        col1g.operator("mesh.mark_sharp", text="Mark Sharp", icon='SHARPCURVE')
-        col2g.operator("mesh.mark_sharp", text="Clear Sharp", icon='X').clear = True
+        row7.operator("mesh.mark_sharp", text="Mark Sharp",  icon='SHARPCURVE')
+        row7.operator("mesh.mark_sharp", text="Clear Sharp", icon='X').clear = True
 
-        # === Row 8 ===
         row8 = layout.row(align=True)
-        col1h = row8.column()
-        col2h = row8.column()
-        col1h.operator("object.shade_smooth", text="Shade Smooth", icon='SHADING_RENDERED')
-        col2h.operator("object.shade_flat", text="Shade Flat", icon='SHADING_SOLID')
+        row8.operator("object.shade_smooth", text="Shade Smooth", icon='SHADING_RENDERED')
+        row8.operator("object.shade_flat",   text="Shade Flat",   icon='SHADING_SOLID')
 
-        # === Row 9 ===
         row9 = layout.row(align=True)
-        col1i = row9.column()
-        col2i = row9.column()
-        col1i.operator("object.randomize_transform", text="Randomize Transform", icon='MOD_ARRAY')
-        col2i.operator("object.make_links_data", text="Copy Modifier to Selected", icon='MODIFIER').type = 'MODIFIERS'
+        row9.operator("object.randomize_transform", text="Randomize Transform",     icon='MOD_ARRAY')
+        row9.operator("object.make_links_data",     text="Copy Modifier to Selected", icon='MODIFIER').type = 'MODIFIERS'
 
-        # === Row 10 (new) ===
         row10 = layout.row(align=True)
-        col1j = row10.column()
-        col2j = row10.column()
-        col1j.operator("object.apply_all_transform", text="Apply - All Transform", icon='FILE_TICK')
-        col2j.operator("object.apply_all_modifiers", text="Apply All Modifiers", icon='MODIFIER')
+        row10.operator("object.apply_all_transform",  text="Apply - All Transform", icon='FILE_TICK')
+        row10.operator("object.apply_all_modifiers",  text="Apply All Modifiers",   icon='MODIFIER')
+
+        # --- Transform Orientation ---
+        layout.separator()
+        layout.label(text="Transform Orientation:")
+        row11 = layout.row(align=True)
+        row11.operator("view3d.set_orientation_global", text="Global", icon='ORIENTATION_GLOBAL')
+        row11.operator("view3d.set_orientation_normal", text="Normal", icon='ORIENTATION_NORMAL')
+        row11.operator("view3d.set_orientation_view",   text="View",   icon='ORIENTATION_VIEW')
+
+        # --- Merge Overlap ---
+        layout.separator()
+        layout.operator("object.merge_overlap", text="Merge Overlap", icon='AUTOMERGE_ON')
