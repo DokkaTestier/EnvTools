@@ -19,6 +19,18 @@ def make_collection(base_name, scene):
     return coll
 
 
+def copy_object(src, linked):
+    """
+    Duplicate src object.
+    linked=True  → shares mesh data (Linked Duplicate / Alt+D)
+    linked=False → independent copy of mesh data (Object Duplicate / Shift+D)
+    """
+    new_obj = src.copy()
+    if not linked and src.data:
+        new_obj.data = src.data.copy()
+    return new_obj
+
+
 def apply_random_transform(obj, scale_min, scale_max, rot_min, rot_max):
     """Apply random uniform scale and random rotation on all axes."""
     rand_scale = random.uniform(scale_min, scale_max)
@@ -45,7 +57,7 @@ def point_inside_mesh(point, obj):
 
     hits = 0
     origin = local_pt.copy()
-    for _ in range(64):  # max intersections guard
+    for _ in range(64):
         hit, loc, normal, face_idx = obj.ray_cast(origin, direction)
         if not hit:
             break
@@ -60,60 +72,64 @@ def point_inside_mesh(point, obj):
 # =========================
 
 def duplicate_on_geometry(context, mode="FACES"):
-    active = context.active_object
-    targets = [obj for obj in context.selected_objects if obj != active]
+    # active object = the surface (faces/vertices to scatter ON)
+    # selected objects (non-active) = the objects to be duplicated
+    surface = context.active_object
+    sources = [obj for obj in context.selected_objects if obj != surface]
 
-    if not active or not targets:
+    if not surface or not sources:
         return {'CANCELLED'}
 
-    scene = context.scene
-    scale_min      = scene.face_scale_min
-    scale_max      = scene.face_scale_max
-    rot_min        = scene.face_rot_min
-    rot_max        = scene.face_rot_max
-    keep_origin    = scene.duplicate_keep_origin
-    random_sel     = scene.duplicate_random_selection
-    random_range   = scene.duplicate_random_range
+    scene        = context.scene
+    scale_min    = scene.face_scale_min
+    scale_max    = scene.face_scale_max
+    rot_min      = scene.face_rot_min
+    rot_max      = scene.face_rot_max
+    keep_origin  = scene.duplicate_keep_origin
+    random_sel   = scene.duplicate_random_selection
+    random_range = scene.duplicate_random_range
+    linked       = scene.duplicate_linked
+
+    if surface.type != 'MESH':
+        return {'CANCELLED'}
 
     new_collection = make_collection("Duplicates", scene)
 
-    for target in targets:
-        if target.type != 'MESH':
+    elements = (
+        surface.data.polygons if mode == "FACES"
+        else surface.data.vertices if mode == "VERTICES"
+        else None
+    )
+    if elements is None:
+        return {'CANCELLED'}
+
+    for elem in elements:
+        if random_sel and random.random() > (random_range / 100.0):
             continue
 
-        elements = (
-            target.data.polygons if mode == "FACES"
-            else target.data.vertices if mode == "VERTICES"
-            else None
-        )
-        if elements is None:
-            continue
+        # Pick a random source to scatter
+        src     = random.choice(sources)
+        new_obj = copy_object(src, linked)
 
-        for elem in elements:
-            if random_sel and random.random() > (random_range / 100.0):
-                continue
-
-            new_obj = active.copy()
-
-            if mode == "FACES":
-                new_obj.location = target.matrix_world @ elem.center
+        if mode == "FACES":
+            new_obj.location = surface.matrix_world @ elem.center
+            new_obj.rotation_euler = (
+                src.rotation_euler.copy() if keep_origin
+                else elem.normal.to_track_quat('Z', 'Y').to_euler()
+            )
+        else:  # VERTICES
+            new_obj.location = surface.matrix_world @ elem.co
+            if keep_origin:
+                new_obj.rotation_euler = src.rotation_euler.copy()
+            else:
                 new_obj.rotation_euler = (
-                    active.rotation_euler.copy() if keep_origin
-                    else elem.normal.to_track_quat('Z', 'Y').to_euler()
+                    elem.normal.to_track_quat('Z', 'Y').to_euler()
+                    if hasattr(elem, "normal")
+                    else src.rotation_euler.copy()
                 )
-            else:  # VERTICES
-                new_obj.location = target.matrix_world @ elem.co
-                if keep_origin:
-                    new_obj.rotation_euler = active.rotation_euler.copy()
-                else:
-                    new_obj.rotation_euler = (
-                        elem.normal.to_track_quat('Z', 'Y').to_euler()
-                        if hasattr(elem, "normal")
-                        else active.rotation_euler.copy()
-                    )
 
-            apply_random_transform(new_obj, scale_min, scale_max, rot_min, rot_max)
-            new_collection.objects.link(new_obj)
+        apply_random_transform(new_obj, scale_min, scale_max, rot_min, rot_max)
+        new_collection.objects.link(new_obj)
 
     return {'FINISHED'}
 
@@ -170,12 +186,13 @@ class OBJECT_OT_DuplicateOnVolume(bpy.types.Operator):
             self.report({'ERROR'}, "Select at least one other object to scatter inside the volume")
             return {'CANCELLED'}
 
-        scene      = context.scene
-        count      = scene.duplicate_volume_count
-        scale_min  = scene.face_scale_min
-        scale_max  = scene.face_scale_max
-        rot_min    = scene.face_rot_min
-        rot_max    = scene.face_rot_max
+        scene     = context.scene
+        count     = scene.duplicate_volume_count
+        scale_min = scene.face_scale_min
+        scale_max = scene.face_scale_max
+        rot_min   = scene.face_rot_min
+        rot_max   = scene.face_rot_max
+        linked    = scene.duplicate_linked
 
         # World-space bounding box
         corners = [active.matrix_world @ mathutils.Vector(c) for c in active.bound_box]
@@ -202,8 +219,8 @@ class OBJECT_OT_DuplicateOnVolume(bpy.types.Operator):
                 continue
 
             src     = random.choice(sources)
-            new_obj = src.copy()
-            new_obj.location      = pt
+            new_obj = copy_object(src, linked)
+            new_obj.location       = pt
             new_obj.rotation_euler = src.rotation_euler.copy()
 
             apply_random_transform(new_obj, scale_min, scale_max, rot_min, rot_max)
@@ -236,21 +253,20 @@ class OBJECT_OT_DuplicateXTimes(bpy.types.Operator):
             self.report({'ERROR'}, "No active object")
             return {'CANCELLED'}
 
-        count          = context.scene.duplicate_x_times_count
-        new_collection = make_collection(f"{active.name}_Duplicates", context.scene)
+        scene          = context.scene
+        count          = scene.duplicate_x_times_count
+        linked         = scene.duplicate_linked
+        new_collection = make_collection(f"{active.name}_Duplicates", scene)
 
         for _ in range(count):
-            new_obj               = active.copy()
-            if active.data:
-                new_obj.data      = active.data.copy()
-            new_obj.location      = active.location.copy()
+            new_obj                = copy_object(active, linked)
+            new_obj.location       = active.location.copy()
             new_obj.rotation_euler = active.rotation_euler.copy()
-            new_obj.scale         = active.scale.copy()
+            new_obj.scale          = active.scale.copy()
             new_collection.objects.link(new_obj)
 
         self.report({'INFO'}, f"{count} duplicates created in '{new_collection.name}'")
         return {'FINISHED'}
-
 
 # =========================
 # UI Panel
@@ -266,24 +282,31 @@ class VIEW3D_PT_DuplicateOnPanel(bpy.types.Panel):
         layout = self.layout
         scene  = context.scene
 
-        # --- Main scatter buttons ---
-        layout.operator("object.duplicate_on_faces",    text="Duplicate on Faces",    icon='MOD_PARTICLES')
-        layout.operator("object.duplicate_on_vertices", text="Duplicate on Vertices", icon='VERTEXSEL')
+        # --- 1. Duplicate X Times ---
+        layout.label(text="Duplicate:")
+        layout.prop(scene, "duplicate_x_times_count")
+        layout.operator("object.duplicate_x_times", text="Duplicate X Times", icon='COPYDOWN')
 
-        # Volume — has its own count
+        # --- 3. Duplicate on Volume ---
         layout.separator()
         layout.label(text="Duplicate on Volume:")
         layout.prop(scene, "duplicate_volume_count")
         layout.operator("object.duplicate_on_volume", text="Duplicate on Volume", icon='MESH_ICOSPHERE')
 
-        # --- Options for Faces / Vertices ---
+        # --- 4. Duplicate on Faces / Vertices ---
+        layout.separator()
+        layout.label(text="Duplicate on:")
+        layout.operator("object.duplicate_on_faces",    text="Duplicate on Faces",    icon='MOD_PARTICLES')
+        layout.operator("object.duplicate_on_vertices", text="Duplicate on Vertices", icon='VERTEXSEL')
+
+        # --- 2. Shared duplication options ---
         layout.separator()
         layout.prop(scene, "duplicate_keep_origin")
+        layout.prop(scene, "duplicate_linked")
         layout.prop(scene, "duplicate_random_selection")
         if scene.duplicate_random_selection:
             layout.prop(scene, "duplicate_random_range")
 
-        # --- Shared scale / rotation (Faces, Vertices AND Volume) ---
         layout.separator()
         layout.label(text="Random Scale:")
         layout.prop(scene, "face_scale_min")
@@ -292,9 +315,3 @@ class VIEW3D_PT_DuplicateOnPanel(bpy.types.Panel):
         layout.label(text="Random Rotation (0–1 = 0–360°):")
         layout.prop(scene, "face_rot_min")
         layout.prop(scene, "face_rot_max")
-
-        # --- Duplicate X Times ---
-        layout.separator()
-        layout.label(text="Duplicate X Times:")
-        layout.prop(scene, "duplicate_x_times_count")
-        layout.operator("object.duplicate_x_times", text="Duplicate X Times", icon='COPYDOWN')

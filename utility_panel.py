@@ -1,9 +1,9 @@
 import bpy
 import bmesh
 
-# -----------------------
+# =========================
 # Smart Deselect Boundary
-# -----------------------
+# =========================
 class MESH_OT_deselect_boundary(bpy.types.Operator):
     bl_idname = "mesh.deselect_boundary"
     bl_label = "Deselect Boundary"
@@ -57,9 +57,9 @@ class MESH_OT_deselect_boundary(bpy.types.Operator):
         return {'FINISHED'}
 
 
-# -----------------------
+# =========================
 # Apply All Transforms
-# -----------------------
+# =========================
 class OBJECT_OT_apply_all_transform(bpy.types.Operator):
     bl_idname = "object.apply_all_transform"
     bl_label = "Apply - All Transform"
@@ -99,9 +99,9 @@ class OBJECT_OT_apply_all_transform(bpy.types.Operator):
         return {'FINISHED'}
 
 
-# -----------------------
+# =========================
 # Apply All Modifiers
-# -----------------------
+# =========================
 class OBJECT_OT_apply_all_modifiers(bpy.types.Operator):
     bl_idname = "object.apply_all_modifiers"
     bl_label = "Apply All Modifiers"
@@ -142,9 +142,9 @@ class OBJECT_OT_apply_all_modifiers(bpy.types.Operator):
         return {'FINISHED'}
 
 
-# -----------------------
+# =========================
 # Transformation Orientation shortcuts
-# -----------------------
+# =========================
 class VIEW3D_OT_set_orientation_global(bpy.types.Operator):
     bl_idname = "view3d.set_orientation_global"
     bl_label = "Global"
@@ -245,9 +245,9 @@ class OBJECT_OT_merge_overlap(bpy.types.Operator):
         return self.execute(context)
 
 
-# -----------------------
+# =========================
 # Utility Panel
-# -----------------------
+# =========================
 class VIEW3D_PT_UtilityPanel(bpy.types.Panel):
     bl_label = "Utility"
     bl_idname = "VIEW3D_PT_utility"

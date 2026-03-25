@@ -1,10 +1,10 @@
 bl_info = {
     "name": "EnvTools",
-    "author": "Your Name",
-    "version": (1, 2),
+    "author": "Brandon Buchan",
+    "version": (1, 3),
     "blender": (2, 93, 0),
     "location": "View3D > Tool",
-    "description": "Environment tools: replace objects, duplicate on faces/vertices/volume, and utility shortcuts",
+    "description": "Environment tools: For Env/prop Artist; replace objects, duplicate on faces/vertices/volume, utility shortcuts, ID maps",
     "category": "Object",
 }
 
@@ -12,6 +12,7 @@ import bpy
 from . import replace_with_active
 from . import duplicate_on
 from . import utility_panel
+from . import id_map
 
 classes = (
     # Replace with Active
@@ -32,6 +33,17 @@ classes = (
     utility_panel.VIEW3D_OT_set_orientation_view,
     utility_panel.OBJECT_OT_merge_overlap,
     utility_panel.VIEW3D_PT_UtilityPanel,
+    # ID Map
+    id_map.OBJECT_OT_id_add_slot,
+    id_map.OBJECT_OT_id_remove_slot,
+    id_map.OBJECT_OT_id_slot_move_up,
+    id_map.OBJECT_OT_id_slot_move_down,
+    id_map.OBJECT_OT_id_assign,
+    id_map.OBJECT_OT_id_select,
+    id_map.OBJECT_OT_id_deselect,
+    id_map.OBJECT_OT_id_select_by_material,
+    id_map.OBJECT_OT_generate_id,
+    id_map.VIEW3D_PT_IDMapPanel,
 )
 
 
@@ -63,6 +75,11 @@ def register():
         default=False,
         description="Keep the original object orientation instead of aligning to face normals"
     )
+    bpy.types.Scene.duplicate_linked = bpy.props.BoolProperty(
+        name="Linked",
+        default=False,
+        description="Linked: duplicates share mesh data (Alt+D). Unchecked: independent copy (Shift+D)"
+    )
     bpy.types.Scene.duplicate_random_selection = bpy.props.BoolProperty(
         name="Random Selection",
         default=False,
@@ -74,14 +91,14 @@ def register():
         subtype="PERCENTAGE"
     )
 
-    # --- Duplicate on Volume: own count ---
+    # --- Duplicate on Volume ---
     bpy.types.Scene.duplicate_volume_count = bpy.props.IntProperty(
         name="Count",
         default=10, min=1, max=99999,
         description="Number of objects to scatter inside the volume"
     )
 
-    # --- Duplicate X Times: own count ---
+    # --- Duplicate X Times ---
     bpy.types.Scene.duplicate_x_times_count = bpy.props.IntProperty(
         name="Count",
         default=1, min=1, max=9999,
@@ -105,6 +122,7 @@ def unregister():
         "face_rot_min", "face_rot_max",
         "rot_axis_x", "rot_axis_y", "rot_axis_z",
         "duplicate_keep_origin",
+        "duplicate_linked",
         "duplicate_random_selection", "duplicate_random_range",
         "duplicate_volume_count",
         "duplicate_x_times_count",
