@@ -1,6 +1,6 @@
 bl_info = {
     "name": "EnvTools",
-    "author": "Your Name",
+    "author": "brandon buchan",
     "version": (1, 3),
     "blender": (2, 93, 0),
     "location": "View3D > Tool",
