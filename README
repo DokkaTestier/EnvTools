@@ -1,0 +1,209 @@
+# EnvTools — Addon Documentation
+**Version:** 1.3 | **Blender:** 2.93+ (compatible with 4.x) | **Location:** 3D Viewport → N Panel → EnvTools
+
+---
+
+## How to Install
+1. Download `EnvTools.zip`
+2. Go to **Edit → Preferences → Add-ons → Install**
+3. Select the `.zip` and enable **EnvTools**
+4. The panels appear in the **N Panel** (press `N` in the 3D Viewport) under the **EnvTools** tab
+
+---
+
+## Panel: Replace with Active
+
+Replaces all selected objects with copies of the active object, preserving position and rotation.
+
+**How to use:**
+1. Select the objects you want to replace
+2. Make the replacement object the **active** one (right-click or click last)
+3. Press **Replace**
+
+**Option:**
+- **Use Replaced Object Scale** — ON: each copy adapts to the size of the object it replaces. OFF: all copies keep the active object's original scale.
+
+---
+
+## Panel: Duplicate On
+
+Tools for scattering and duplicating objects. All operations create a new collection automatically.
+
+**Option — Linked:** When checked, duplicates share mesh data (like Alt+D). When unchecked, each duplicate is a fully independent object (like Shift+D).
+
+---
+
+### Duplicate X Times
+Duplicates the active object N times and places all copies in a new collection.
+
+**How to use:**
+1. Select the object to duplicate (active)
+2. Set the **Count**
+3. Press **Duplicate X Times**
+
+All copies are placed at the same location as the original. Move them manually or use it as a base for further operations.
+
+---
+
+### Duplicate on Volume
+Scatters selected objects randomly inside the volume of the active mesh using raycasting.
+
+**How to use:**
+1. Select the objects to scatter
+2. Make the **volume mesh** the active object
+3. Set **Count** and adjust **Random Scale / Rotation**
+4. Press **Duplicate on Volume**
+
+**Notes:**
+- Uses real raycasting to ensure every object lands inside the mesh, not just inside its bounding box
+- If the mesh is very thin or concave and not all objects can be placed, a warning shows how many were placed
+- Randomly picks among selected objects for each instance
+
+---
+
+### Duplicate on Faces
+Places a copy of each selected object on every face of the active mesh, aligned to face normals.
+
+**How to use:**
+1. Select the objects to duplicate
+2. Make the **target mesh** the active object
+3. Press **Duplicate on Faces**
+
+---
+
+### Duplicate on Vertices
+Same as Duplicate on Faces but places copies on every vertex of the active mesh.
+
+**How to use:**
+1. Select the objects to duplicate
+2. Make the **target mesh** the active object
+3. Press **Duplicate on Vertices**
+
+---
+
+### Shared Options (Faces, Vertices & Volume)
+
+| Option | Description |
+|---|---|
+| **Keep Origin** | Keeps the original object's rotation instead of aligning to face/vertex normals |
+| **Linked** | Duplicates share mesh data (ON) or are fully independent (OFF) |
+| **Random Selection** | Only scatter on a random percentage of faces/vertices |
+| **Random Range (%)** | Controls what percentage of faces/vertices are used when Random Selection is ON |
+| **Min / Max Scale** | Random uniform scale range applied to each duplicate |
+| **Min / Max Rotation** | Random rotation range on all axes. Values go from 0 to 1 (where 1.0 = 360°) |
+
+---
+
+## Panel: ID Map
+
+Manages materials for creating ID maps. Works alongside Blender's Material Properties — this panel handles assignment only, material settings are edited from the standard properties.
+
+---
+
+### Material Slot List
+Displays all material slots of the active object, identical to the list in Material Properties.
+
+- **+** — Add a new material slot
+- **−** — Remove the active material slot
+- **▲ / ▼** — Move the active slot up or down
+- The material picker below the list lets you assign or create a material for the active slot
+
+---
+
+### Assign / Select / Deselect *(Edit Mode only)*
+These three buttons are only active in **Edit Mode**.
+
+| Button | Action |
+|---|---|
+| **Assign** | Assigns the active material to the selected faces |
+| **Select** | Selects all faces that use the active material |
+| **Deselect** | Deselects all faces that use the active material |
+
+---
+
+### Select by Material *(Object Mode only)*
+Active only in **Object Mode**. Selects all objects in the scene that share the same material as the active slot.
+
+**How to use:**
+1. Select the active material slot in the list
+2. Press **Select by Material**
+
+---
+
+### Generate ID
+Automatically creates and assigns flat-colored ID materials to objects or mesh islands.
+
+**Object Mode:**
+- Assigns one random ID material per selected object
+- Clears existing materials on each object before assigning
+
+**Edit Mode:**
+- Detects all linked mesh islands inside the active object using BFS face adjacency
+- Assigns one ID material per island
+- Useful for objects created with **Join (Ctrl+J)** — each original mesh gets its own color
+
+**Color rules:**
+- Colors are vivid (high saturation and value) for easy visual separation
+- Colors that are too similar are avoided within the same generation pass
+- If an `ID_###` material with the same color already exists in the scene it is reused instead of creating a duplicate
+- Materials are named `ID_001`, `ID_002`, etc.
+- Each material uses Principled BSDF with Roughness = 1 and Specular = 0 for a flat, render-ready look
+
+---
+
+## Panel: Utility
+
+A collection of shortcuts for common modeling and viewport operations, arranged in two-column rows.
+
+| Button | Action |
+|---|---|
+| **Cursor to Selected** | Moves the 3D cursor to the selected element |
+| **Origin to 3D Cursor** | Sets the object origin to the current 3D cursor position |
+| **Triangulate Faces** | Converts quads to triangles |
+| **Tris to Quads** | Converts triangles back to quads |
+| **Face Orientation** | Toggles the face orientation overlay (blue = front, red = back) |
+| **Flip Normals** | Flips the normals of selected faces |
+| **Set Flow** | Runs Set Edge Flow on the selected edges (requires the built-in add-on) |
+| **Edge Ring** | Selects the edge ring from the current selection |
+| **Select Boundary** | Selects the boundary loop of the current face selection |
+| **Deselect Boundary** | Selects the boundary and then deselects it, keeping the inner selection clean |
+| **Mark / Clear Seam** | Marks or clears UV seams on selected edges |
+| **Mark / Clear Sharp** | Marks or clears sharp edges on selected edges |
+| **Shade Smooth / Flat** | Applies smooth or flat shading to selected objects |
+| **Randomize Transform** | Applies a random transform to selected objects |
+| **Copy Modifier to Selected** | Copies modifiers from the active object to all selected objects |
+| **Apply - All Transform** | Applies location, rotation and scale to all selected objects at once |
+| **Apply All Modifiers** | Applies all modifiers on all selected mesh objects |
+
+---
+
+### Transform Orientation
+Three buttons to quickly switch the transformation orientation from the N Panel without using the header dropdown.
+
+| Button | Sets orientation to |
+|---|---|
+| **Global** | World axes |
+| **Normal** | Face/edge normal direction |
+| **View** | Current viewport view axes |
+
+---
+
+### Merge Overlap
+Selects all vertices of the active object and runs **Merge by Distance** to remove overlapping vertices.
+
+After pressing the button, the **redo panel** appears in the bottom-left corner of the viewport (or press **F9**) where you can adjust:
+
+| Option | Description |
+|---|---|
+| **Merge Distance** | Maximum distance between vertices to merge |
+| **Unselected** | Also merges selected vertices with unselected ones |
+| **Sharp Edges** | Recalculates sharp edges using custom normal data after merging |
+
+Works from both Object Mode and Edit Mode.
+
+---
+
+## Notes
+- All duplicate operations automatically create a new uniquely named collection
+- The addon is compatible with Blender **2.93 and above**, including the **4.x** series
+- Blender 4.x renamed some shader inputs — the addon handles this automatically (e.g. `Specular IOR Level`)
