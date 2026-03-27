@@ -4,9 +4,9 @@ import colorsys
 import bmesh
 
 
-# =========================
+# =========================================================
 # Helpers
-# =========================
+# =========================================================
 
 def _get_active_mat_index(obj):
     return obj.active_material_index
@@ -108,9 +108,9 @@ def _get_or_create_id_material():
     return _make_id_material(*_unique_color())
 
 
-# =========================
+# =========================================================
 # Operators
-# =========================
+# =========================================================
 
 class OBJECT_OT_id_add_slot(bpy.types.Operator):
     bl_idname = "object.id_add_slot"
@@ -244,9 +244,9 @@ class OBJECT_OT_id_select_by_material(bpy.types.Operator):
         return {'FINISHED'}
 
 
-# =========================
+# =========================================================
 # Generate ID
-# =========================
+# =========================================================
 
 class OBJECT_OT_generate_id(bpy.types.Operator):
     bl_idname = "object.generate_id"
@@ -389,6 +389,135 @@ class OBJECT_OT_generate_id(bpy.types.Operator):
         return _make_id_material(*_unique_color())
 
 
+
+
+# =========================================================
+# Generate ID by UV Islands
+# =========================================================
+
+class OBJECT_OT_generate_id_by_uv_islands(bpy.types.Operator):
+    bl_idname = "object.generate_id_by_uv_islands"
+    bl_label = "Generate by Islands"
+    bl_description = (
+        "Edit Mode only: detects UV islands and assigns one ID material per island. "
+        "If the object has no UV map, Smart UV Project is run automatically first."
+    )
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        return context.mode == 'EDIT_MESH' and obj is not None and obj.type == 'MESH'
+
+    def execute(self, context):
+        obj  = context.active_object
+        mesh = obj.data
+
+        # --- Ensure UV map exists ---
+        if not mesh.uv_layers:
+            self.report({'INFO'}, "No UV map found — running Smart UV Project")
+            bpy.ops.uv.smart_project()
+            if not mesh.uv_layers:
+                self.report({'ERROR'}, "Could not create UV map")
+                return {'CANCELLED'}
+
+        # --- Collect UV islands via BFS on shared UV vertices ---
+        # We need to work with bmesh to access UV data
+        bpy.ops.mesh.select_all(action='SELECT')
+
+        bm = bmesh.from_edit_mesh(mesh)
+        bm.faces.ensure_lookup_table()
+        uv_layer = bm.loops.layers.uv.active
+
+        if uv_layer is None:
+            self.report({'ERROR'}, "No active UV layer found")
+            return {'CANCELLED'}
+
+        # Build adjacency: two faces are in the same island if they share
+        # an edge AND the UV coordinates of that edge match on both sides.
+        n_faces   = len(bm.faces)
+        island_id = [-1] * n_faces
+        current_island = 0
+
+        # Map UV coordinate (rounded) → list of (face_index, loop_index)
+        # so we can find faces that share UV space
+        from collections import defaultdict
+        uv_to_loops = defaultdict(list)
+
+        for face in bm.faces:
+            for loop in face.loops:
+                uv = loop[uv_layer].uv
+                key = (round(uv.x, 5), round(uv.y, 5))
+                uv_to_loops[key].append((face.index, loop.vert.index))
+
+        # Build face adjacency through shared UV+vert pairs
+        face_neighbors = defaultdict(set)
+        for key, entries in uv_to_loops.items():
+            # Group by vertex index — faces sharing vert+uv are UV-connected
+            vert_faces = defaultdict(list)
+            for face_idx, vert_idx in entries:
+                vert_faces[vert_idx].append(face_idx)
+            for vert_idx, faces in vert_faces.items():
+                for i in range(len(faces)):
+                    for j in range(i + 1, len(faces)):
+                        face_neighbors[faces[i]].add(faces[j])
+                        face_neighbors[faces[j]].add(faces[i])
+
+        # BFS to label islands
+        for start in range(n_faces):
+            if island_id[start] != -1:
+                continue
+            queue = [start]
+            island_id[start] = current_island
+            while queue:
+                fi = queue.pop()
+                for nb in face_neighbors[fi]:
+                    if island_id[nb] == -1:
+                        island_id[nb] = current_island
+                        queue.append(nb)
+            current_island += 1
+
+        num_islands = current_island
+        bm.free()
+
+        # --- Clear existing material slots and create one per island ---
+        bpy.ops.object.mode_set(mode='OBJECT')
+        mesh.materials.clear()
+
+        used_colors = []
+        mats = []
+        for _ in range(num_islands):
+            mat = self._unique_mat(used_colors)
+            r, g, b = mat.diffuse_color[:3]
+            used_colors.append((r, g, b))
+            mesh.materials.append(mat)
+            mats.append(mat)
+
+        # Assign material index per face
+        for face in mesh.polygons:
+            face.material_index = island_id[face.index]
+
+        bpy.ops.object.mode_set(mode='EDIT')
+        self.report({'INFO'}, f"{num_islands} UV island(s) colored")
+        return {'FINISHED'}
+
+    def _unique_mat(self, used_colors, max_tries=128):
+        for _ in range(max_tries):
+            r, g, b = _unique_color()
+            too_close = any(
+                abs(r - uc[0]) < 0.15 and
+                abs(g - uc[1]) < 0.15 and
+                abs(b - uc[2]) < 0.15
+                for uc in used_colors
+            )
+            if too_close:
+                continue
+            existing = _find_existing_id_material(r, g, b)
+            if existing:
+                return existing
+            return _make_id_material(r, g, b)
+        return _make_id_material(*_unique_color())
+
 # =========================================================
 # Panel
 # =========================================================
@@ -453,6 +582,11 @@ class VIEW3D_PT_IDMapPanel(bpy.types.Panel):
         # ── Generate ID ────────────────────────────────────────────────
         layout.separator()
         layout.operator("object.generate_id", text="Generate ID", icon='MATERIAL')
+
+        # Generate by UV Islands (Edit Mode only)
+        row5 = layout.row()
+        row5.enabled = is_edit
+        row5.operator("object.generate_id_by_uv_islands", text="Generate by Islands", icon='UV')
 
         # Hint depending on current mode
         if is_edit:

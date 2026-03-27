@@ -1,10 +1,10 @@
 bl_info = {
     "name": "EnvTools",
-    "author": "Brandon Buchan",
+    "author": "Your Name",
     "version": (1, 3),
     "blender": (2, 93, 0),
     "location": "View3D > Tool",
-    "description": "Environment tools: For Env/prop Artist; replace objects, duplicate on faces/vertices/volume, utility shortcuts, ID maps",
+    "description": "Environment tools: replace objects, duplicate on faces/vertices/volume, utility shortcuts, ID map",
     "category": "Object",
 }
 
@@ -43,6 +43,7 @@ classes = (
     id_map.OBJECT_OT_id_deselect,
     id_map.OBJECT_OT_id_select_by_material,
     id_map.OBJECT_OT_generate_id,
+    id_map.OBJECT_OT_generate_id_by_uv_islands,
     id_map.VIEW3D_PT_IDMapPanel,
 )
 
@@ -107,9 +108,9 @@ def register():
 
     # --- Replace with Active ---
     bpy.types.Scene.replace_apply_scale = bpy.props.BoolProperty(
-        name="Apply Scale",
+        name="Use Replaced Object Scale",
         default=False,
-        description="Apply scale to the active object before replacing"
+        description="ON: each replacement inherits the scale of the object it replaces. OFF: keeps the active object's own scale"
     )
 
 
